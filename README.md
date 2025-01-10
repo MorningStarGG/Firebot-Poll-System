@@ -229,5 +229,6 @@ This script is provided as-is under the GPL-3.0 license. You are free to modify 
 ## Acknowledgments
 
 Special thanks to the Firebot community for their support and contributions.
+
 ---
 **AI Disclaimer:** Parts of this was made with various AI tools to speed development time.
