@@ -1,0 +1,54 @@
+{
+  "name": "firebot-enhanced-voting-system",
+  "displayName": "Enhanced Voting System",
+  "description": "Customizable Voting/Poll System for Firebot",
+  "version": "1.0.0",
+  "author": "MorningStarGG",
+  "publisher": "MorningStarGG",
+  "homepage": "https://twitch.tv/MorningStarGG",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "github:MorningStarGG/firebot-enhanced-voting-system"
+  },
+  "bugs": {
+    "url": "https://github.com/MorningStarGG/firebot-enhanced-voting-system/issues"
+  },
+  "main": "dist/MSGG-VotingSystem.js",
+  "scripts": {
+    "build": "webpack",
+    "build:dev": "webpack --mode=development",
+    "build:prod": "webpack --mode=production",
+    "test": "jest",
+    "watch": "webpack --watch --mode=development"
+  },
+  "keywords": [
+    "firebot",
+    "streaming",
+    "donation-tracker",
+    "goal-tracker",
+    "extra-life",
+    "stream-elements",
+    "twitch",
+    "countdown",
+    "progress-bar"
+  ],
+  "devDependencies": {
+    "@crowbartools/firebot-custom-scripts-types": "^5.63.1",
+    "@types/jest": "^27.0.0",
+    "@types/jquery": "^3.5.32",
+    "jest": "^27.0.0",
+    "raw-loader": "^4.0.2",
+    "terser-webpack-plugin": "^5.3.9",
+    "ts-jest": "^27.0.0",
+    "ts-loader": "^9.2.5",
+    "typescript": "^4.4.2",
+    "webpack": "^5.51.1",
+    "webpack-cli": "^4.8.0",
+    "node-json-db": "^2.3.0"
+  },
+  "dependencies": {
+    "jquery": "^3.7.1",
+    "node-json-db": "^2.3.0"
+  }
+}

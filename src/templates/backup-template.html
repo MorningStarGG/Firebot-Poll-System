@@ -1,0 +1,120 @@
+<style>
+    .pollNames {
+        max-width: 150px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        display: inline-block;
+    }
+
+    .pollList {
+        min-width: 550px;
+    }
+
+    .pollNames-tooltip-container {
+        min-width: 150px;
+        height: 40px;
+        max-width: 150px;
+    }
+
+    .pollNames-tooltip {
+        display: none;
+        position: absolute;
+        left: 0;
+        top: 100%;
+        /* Show below the text */
+        background-color: #333;
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 4px;
+        white-space: nowrap;
+        font-size: 14px;
+        z-index: 1000;
+    }
+
+    .pollNames-tooltip-container:hover .pollNames-tooltip {
+        display: block;
+    }
+</style>
+<!-- Main container with descriptive heading -->
+<eos-container header="Poll Backup Manager" role="region" aria-label="Poll Backup Management Interface">
+    <!-- Poll Selection Mode Dropdown -->
+    <div class="input-group" style="margin-bottom: 15px;">
+        <span class="input-group-addon" id="mode-label">Poll Selection Mode</span>
+        <select class="form-control" 
+                ng-model="effect.pollSelectionMode" 
+                ng-change="effectValueChanged()"
+                aria-labelledby="mode-label"
+                aria-describedby="mode-description">
+            <option value="pollList">Poll Title List</option>
+            <option value="manual">Manual Poll Title Entry</option>
+        </select>
+    </div>
+
+    <!-- Manual Mode Section -->
+    <div ng-if="effect.pollSelectionMode === 'manual'" role="form" aria-label="Manual Poll Entry Form">
+        <firebot-input 
+            input-title="Poll Title Variable" 
+            pad-top="true" 
+            model="effect.manualPollTitle"
+            placeholder="$variable or poll name"
+            aria-label="Enter Poll Title">
+        </firebot-input>
+
+        <div style="padding-top: 15px;" role="radiogroup" aria-label="Poll Action Selection">
+            <firebot-radios 
+                model="effect.action" 
+                options="{ restore: 'Restore Poll', remove: 'Permanently Delete' }"
+                inline="true">
+            </firebot-radios>
+        </div>
+    </div>
+
+    <!-- List Mode Section -->
+    <div ng-if="effect.pollSelectionMode === 'pollList'" role="region" aria-label="Poll Backup List">
+        <!-- Loading State -->
+        <div ng-if="loading" class="text-center" role="status" aria-live="polite">
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading backups...
+        </div>
+
+        <!-- Empty State Message -->
+        <div ng-if="!loading && (!backupPolls || backupPolls.length === 0)" 
+             class="alert alert-info" 
+             role="alert">
+            <i class="fas fa-archive" aria-hidden="true"></i> No backed up polls found
+        </div>
+
+        <!-- Poll List Items -->
+        <div ng-if="!loading && backupPolls.length > 0" 
+             ng-repeat="poll in backupPolls" 
+             class="backup-item"
+             style="margin-bottom: 10px; display: flex; justify-content: center; align-items: center;"
+             role="listitem">
+            <div class="input-group pollList">
+                <!-- Poll Title with Tooltip -->
+                <div class="pollNames-tooltip-container input-group-addon" role="tooltip">
+                    <span class="pollNames" aria-label="Poll Title">Poll Name: {{poll.pollData.title}}</span>
+                    <div class="pollNames-tooltip" role="tooltip">Poll Name: {{poll.pollData.title}}</div>
+                </div>
+                <!-- Timestamp -->
+                <span class="input-group-addon" aria-label="Removal Date">
+                    <i class="far fa-clock" aria-hidden="true"></i> {{poll.removedAt | date:'medium'}}
+                </span>
+                <!-- Action Buttons -->
+                <span class="input-group-btn">
+                    <button class="btn btn-primary" 
+                            ng-click="restorePoll(poll.id)"
+                            aria-label="Restore Poll {{poll.pollData.title}}">
+                        <i class="fas fa-undo" aria-hidden="true"></i> Restore
+                    </button>
+                    <button class="btn btn-danger" 
+                            ng-click="deletePoll(poll.id)"
+                            aria-label="Delete Poll {{poll.pollData.title}}">
+                        <i class="fas fa-trash" aria-hidden="true"></i> Delete
+                    </button>
+                </span>
+            </div>
+        </div>
+    </div>
+</eos-container>
+</eos-container>

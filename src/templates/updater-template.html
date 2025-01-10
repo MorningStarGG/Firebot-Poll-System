@@ -1,0 +1,517 @@
+<style>
+    .effect-setting-content {
+        margin-bottom: -10px;
+    }
+
+    .edit-effect-footer {
+        margin-top: 15px;
+    }
+</style>
+<!-- Initial warning section -->
+<div ng-if="effect.mode !== 'pollStatus' && (!activePolls || activePolls.length === 0)" style="margin-bottom: 15px;"
+    aria-label="No active polls warning">
+    <div class="alert alert-warning" role="alert">
+        No active polls found. Please create or start a poll first.
+    </div>
+</div>
+
+<!-- Poll Selection Mode section -->
+<eos-container header="Poll Selection Mode" pad-top="true" aria-label="Poll selection mode configuration">
+    <div class="input-group" style="margin-bottom: 10px;">
+        <span class="input-group-addon" id="pollSelectionModeLabel">Poll Selection Mode</span>
+        <select class="form-control" ng-model="effect.pollSelectionMode" ng-change="effectValueChanged()"
+            aria-labelledby="pollSelectionModeLabel">
+            <option value="pollList">Poll Title List</option>
+            <option value="manual">Manual Poll Title Entry</option>
+        </select>
+    </div>
+</eos-container>
+
+<!-- Mode Selection section -->
+<eos-container header="Update Mode" pad-top="true" aria-label="Poll update mode configuration">
+    <div class="input-group" style="margin-bottom: 10px;">
+        <span class="input-group-addon" id="updateModeLabel">Update Mode</span>
+        <select class="form-control" ng-model="effect.mode" ng-change="effectValueChanged()"
+            aria-labelledby="updateModeLabel">
+            <option value="updateOptions">Update Poll Title/Options</option>
+            <option value="updateStyles">Update Poll Colors</option>
+            <option value="updateDisplay">Update Poll Display Settings</option>
+            <option value="updatePosition">Update Poll Display Position</option>
+            <option value="updateOverlayInstance">Update Poll Overlay Instance</option>
+            <option value="togglePauseState">Pause/Resume Poll</option>
+            <option value="pollStatus">Start/Stop Poll</option>
+            <option value="toggleVisibility">Hide/Show Poll</option>
+            <option value="manageVotes">Manage Votes</option>
+            <option value="resetPoll">Reset Poll</option>
+            <option value="undoReset" ng-if="effect.pollSelectionMode === 'manual'">Undo Reset</option>
+            <option value="removePoll">Remove Poll</option>
+        </select>
+    </div>
+</eos-container>
+
+<!-- Poll selection dropdown section -->
+<eos-container ng-if="effect.mode !== 'pollStatus' && effect.mode !== 'removePoll'" header="Poll Selection"
+    pad-top="true" aria-label="Active poll selection interface">
+    <!-- Manual poll title entry -->
+    <div ng-if="effect.pollSelectionMode === 'manual'" style="margin-bottom: 10px;">
+        <firebot-input input-title="Poll Title" pad-top="true" model="effect.manualPollTitle"
+            placeholder="$variable or poll name" aria-label="Enter poll title manually">
+        </firebot-input>
+    </div>
+
+    <!-- Poll selection dropdown -->
+    <div ng-if="effect.pollSelectionMode === 'pollList'">
+        <div class="input-group" style="margin-bottom: 10px;">
+            <span class="input-group-addon" id="activePollLabel">Select Active Poll</span>
+            <select class="form-control" ng-model="effect.pollTitle" ng-change="loadPollOptions()"
+                aria-labelledby="activePollLabel">
+                <option ng-repeat="poll in activePolls" value="{{poll.value}}">
+                    {{poll.label}}
+                </option>
+            </select>
+        </div>
+    </div>
+</eos-container>
+
+<!-- Start/Stop/Remove poll selection section -->
+<eos-container ng-if="effect.mode === 'pollStatus' || effect.mode === 'removePoll'" header="Poll Selection"
+    pad-top="true" aria-label="Poll selection for start, stop, or remove actions">
+    <!-- Manual poll title entry -->
+    <div ng-if="effect.pollSelectionMode === 'manual'" style="margin-bottom: 10px;">
+        <firebot-input input-title="Poll Title" pad-top="true" model="effect.manualPollTitle"
+            placeholder="$variable or poll name" aria-label="Enter poll title for start/stop/remove">
+        </firebot-input>
+    </div>
+
+    <div ng-if="effect.pollSelectionMode === 'pollList'" class="input-group" style="margin-bottom: 10px;">
+        <span class="input-group-addon" id="selectPollLabel">Select Poll</span>
+        <select class="form-control" ng-model="effect.pollTitle" ng-change="loadPollOptions()" pad-top="true"
+            aria-labelledby="selectPollLabel">
+            <option ng-repeat="poll in endedPolls" value="{{poll.value}}">
+                {{poll.label}}
+            </option>
+        </select>
+    </div>
+</eos-container>
+
+<!-- Poll title and option management section -->
+<eos-container ng-if="effect.mode === 'updateOptions'" header="Poll Title & Options" pad-top="true" pad-bottom="true"
+    aria-label="Poll title and options management interface">
+    <!-- Manual Mode -->
+    <div ng-if="effect.pollSelectionMode === 'manual' && effect.mode === 'updateOptions'" style="margin-top: 15px;"
+        aria-label="Manual poll options management">
+        <firebot-radios model="effect.action" options="{ 
+                add: 'Add Option', 
+                remove: 'Remove Option', 
+                restore: 'Restore Option',
+                rename: 'Rename Option',
+                renamePoll: 'Rename Poll'
+            }" inline="true" on-update="effectValueChanged()" aria-label="Select poll option action">
+        </firebot-radios>
+        <!-- Continuing with poll title and options management -->
+        <firebot-input ng-if="effect.action === 'renamePoll'" input-title="New Poll Title" pad-top="true"
+            model="effect.newPollTitle" placeholder="Enter new poll title" aria-label="Enter new title for poll">
+        </firebot-input>
+        <div style="margin-top: 10px;" ng-if="effect.action !== 'renamePoll'" aria-label="Option modification inputs">
+            <firebot-input input-title="Option Value" model="effect.optionNumber"
+                placeholder="{{effect.inputPlaceholder}}" aria-label="Enter option value">
+            </firebot-input>
+
+            <firebot-input ng-if="effect.action === 'rename'" input-title="New Name" style="margin-top: 10px;"
+                model="effect.newName" placeholder="Enter new option name" aria-label="Enter new name for option">
+            </firebot-input>
+        </div>
+    </div>
+
+    <!-- List Mode -->
+    <div ng-if="effect.pollSelectionMode === 'pollList' && effect.mode === 'updateOptions' && effect.pollTitle && effect.pollOptions.optionsList.length > 0"
+        aria-label="List mode poll options management">
+        <h4 id="pollTitleHeader">Poll Title</h4>
+        <div class="input-group" style="margin-bottom: 15px;">
+            <span class="input-group-addon" id="pollTitleLabel">Poll Title</span>
+            <input type="text" class="form-control" ng-model="pollTitleData.displayTitle"
+                ng-change="titleChanged = pollTitleData.displayTitle !== pollTitleData.originalTitle"
+                aria-labelledby="pollTitleLabel">
+            <span class="input-group-btn">
+                <button ng-if="titleChanged" class="btn btn-success" ng-click="confirmPollTitleChange()"
+                    aria-label="Confirm poll title change">
+                    <i class="fas fa-check"></i>
+                </button>
+            </span>
+        </div>
+        <h4 id="pollOptionsHeader">Poll Options</h4>
+        <div ng-repeat="option in effect.pollOptions.optionsList track by $index"
+            aria-label="Poll option {{$index + 1}}">
+            <div class="input-group" style="margin-bottom: 5px;">
+                <span class="input-group-addon" id="optionLabel{{$index}}">Option {{option.option_number}}</span>
+                <input type="text" class="form-control" ng-model="option.option_name"
+                    ng-init="option.originalName = option.option_name"
+                    ng-change="option.nameChanged = option.originalName !== option.option_name"
+                    aria-labelledby="optionLabel{{$index}}">
+                <span class="input-group-addon" aria-label="Vote count for option {{$index + 1}}">Votes:
+                    {{option.votes}}</span>
+                <span class="input-group-btn">
+                    <button ng-if="option.pendingCreation && option.option_name" class="btn btn-success"
+                        ng-click="confirmOptionName($index)" aria-label="Confirm new option name">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button ng-if="!option.pendingCreation && option.nameChanged" class="btn btn-success"
+                        ng-click="confirmOptionNameChange($index)" aria-label="Confirm option name change">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button ng-if="!option.pendingCreation && !option.nameChanged" class="btn btn-danger"
+                        ng-click="removeOption($index)" aria-label="Remove option">
+                        <i class="far fa-trash-alt"></i>
+                    </button>
+                </span>
+            </div>
+        </div>
+        <button class="btn btn-primary" ng-click="addOption()" aria-label="Add new poll option">Add Option</button>
+    </div>
+
+    <!-- List mode removed options -->
+    <div ng-if="effect.pollSelectionMode === 'pollList' && effect.mode === 'updateOptions' && effect.pollTitle && removedOptions && removedOptions.length > 0"
+        aria-label="Removed poll options section">
+        <h4 id="removedOptionsHeader">Removed Options</h4>
+        <div ng-repeat="option in removedOptions track by $index" aria-label="Removed option {{$index + 1}}">
+            <div class="input-group" style="margin-bottom: 5px;">
+                <span class="input-group-addon" id="formerOptionLabel{{$index}}">Former #{{option.formerNumber}}</span>
+                <input type="text" class="form-control" ng-model="option.option_name" disabled
+                    aria-labelledby="formerOptionLabel{{$index}}">
+                <span class="input-group-addon" aria-label="Vote count">
+                    <span ng-if="option.votes > 0">Votes: {{option.votes}}</span>
+                    <span ng-if="option.votes === 0">No votes</span>
+                </span>
+                <span class="input-group-btn">
+                    <button class="btn btn-success" ng-click="restoreOption(option)"
+                        aria-label="Restore removed option">
+                        <i class="fas fa-undo"></i> Restore
+                    </button>
+                </span>
+            </div>
+        </div>
+    </div>
+</eos-container>
+
+<!-- Poll Color & Style settings -->
+<eos-container ng-if="effect.mode === 'updateStyles'" header="Poll Color & Style Settings" pad-top="true"
+    aria-label="Poll color and style configuration interface">
+    <div ng-if="effect.pollSelectionMode === 'manual'" aria-label="Manual style settings">
+        <div class="input-group" style="margin-bottom: 10px;">
+            <span class="input-group-addon" id="settingTypeLabel">Setting to Update</span>
+            <select class="form-control" ng-model="effect.setting.type" ng-change="effectValueChanged()"
+                aria-labelledby="settingTypeLabel">
+                <option value="backgroundColor">Background Color</option>
+                <option value="accentColor">Accent Color</option>
+                <option value="optionColor">Text Color</option>
+                <option value="titleColor">Title Color</option>
+                <option value="trackColor">Bar Color</option>
+                <option value="progressColor">Bar Fill Color</option>
+                <option value="shadowColor">Text Shadow</option>
+                <option value="progressTextColor">Bar Text Color</option>
+                <option value="pollScale">Poll Scale</option>
+            </select>
+        </div>
+
+        <!-- Dynamic input based on setting type -->
+        <div ng-switch="effect.setting.type" aria-label="Style setting value input">
+            <div ng-switch-when="pollScale">
+                <firebot-input input-title="Poll Scale" model="effect.setting.value" placeholder="1"
+                    aria-label="Enter poll scale value">
+                </firebot-input>
+            </div>
+            <div ng-switch-default>
+                <div class="input-group">
+                    <color-picker-input model="effect.setting.value"
+                        label="{{styleLabels[effect.setting.type] || effect.setting.type}}"
+                        aria-label="Select color for {{styleLabels[effect.setting.type] || effect.setting.type}}">
+                    </color-picker-input>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div ng-if="effect.pollSelectionMode === 'pollList'" class="row" aria-label="List mode style settings">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.backgroundColor" label="BG Color"
+                        aria-label="Select background color">
+                    </color-picker-input>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.accentColor" label="Accent Color"
+                        aria-label="Select accent color">
+                    </color-picker-input>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.optionColor" label="Text Color"
+                        aria-label="Select text color">
+                    </color-picker-input>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.trackColor" label="Bar Color"
+                        aria-label="Select progress bar color">
+                    </color-picker-input>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.titleColor" label="Title Color"
+                        aria-label="Select title color">
+                    </color-picker-input>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.progressTextColor" label="Bar Text Color"
+                        aria-label="Select progress text color">
+                    </color-picker-input>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.shadowColor" label="Text Shadow"
+                        aria-label="Select text shadow color">
+                    </color-picker-input>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <color-picker-input model="effect.styles.progressColor" label="Bar Fill Color"
+                        aria-label="Select progress fill color">
+                    </color-picker-input>
+                </div>
+            </div>
+            <firebot-input input-title="Poll Scale" model="effect.styles.pollScale" placeholder="1"
+                aria-label="Enter poll scale value">
+            </firebot-input>
+        </div>
+    </div>
+</eos-container>
+
+<!-- Main poll display settings -->
+<eos-container ng-if="effect.mode === 'updateDisplay'" header="Poll Display Settings" pad-top="true"
+    aria-label="Poll display settings configuration">
+
+    <!-- List Mode -->
+    <div ng-if="effect.pollSelectionMode === 'pollList'" aria-label="List mode display settings">
+        <div class="controls-fb-inline" style="padding-bottom: 10px;" role="group" aria-label="Display options">
+            <label class="control-fb control--checkbox" aria-label="Toggle multiple votes">Allow Multiple Votes
+                <input type="checkbox" ng-model="effect.pollOptions.allowMultipleVotes">
+                <div class="control__indicator"></div>
+            </label>
+            <label class="control-fb control--checkbox" aria-label="Toggle vote count display">Show vote count
+                <input type="checkbox" ng-model="effect.display.showVoteCount">
+                <div class="control__indicator"></div>
+            </label>
+            <label class="control-fb control--checkbox" aria-label="Toggle percentage display">Show percentages
+                <input type="checkbox" ng-model="effect.display.showPercentages">
+                <div class="control__indicator"></div>
+            </label>
+            <label class="control-fb control--checkbox" aria-label="Toggle voting command display">Show voting command
+                <input type="checkbox" ng-model="effect.display.showVotingCommand">
+                <div class="control__indicator"></div>
+            </label>
+            <label class="control-fb control--checkbox" aria-label="Toggle progress animation">Animate Progress
+                <input type="checkbox" ng-model="effect.display.animateProgress">
+                <div class="control__indicator"></div>
+            </label>
+            <label class="control-fb control--checkbox" aria-label="Toggle emoji removal from title">Remove emojis from
+                title
+                <input type="checkbox" ng-model="effect.display.removeEmojis.fromTitle">
+                <div class="control__indicator"></div>
+            </label>
+            <label class="control-fb control--checkbox" aria-label="Toggle emoji removal from options">Remove emojis
+                from options
+                <input type="checkbox" ng-model="effect.display.removeEmojis.fromOptions">
+                <div class="control__indicator"></div>
+            </label>
+        </div>
+        <firebot-input input-title="Vote Command" model="effect.pollOptions.votingCommand" placeholder="!vote"
+            aria-label="Enter voting command">
+        </firebot-input>
+    </div>
+
+    <!-- Manual Mode -->
+    <div ng-if="effect.pollSelectionMode === 'manual'" aria-label="Manual display settings">
+        <div class="input-group" style="margin-bottom: 10px;">
+            <span class="input-group-addon" id="displaySettingLabel">Setting to Update</span>
+            <select class="form-control" ng-model="effect.setting.type" ng-change="effectValueChanged()"
+                aria-labelledby="displaySettingLabel">
+                <option value="allowMultipleVotes">Allow Multiple Votes</option>
+                <option value="showVoteCount">Show Vote Count</option>
+                <option value="showPercentages">Show Percentages</option>
+                <option value="showVotingCommand">Show Voting Command</option>
+                <option value="animateProgress">Animate Progress</option>
+                <option value="removeEmojisFromTitle">Remove Emojis from Title</option>
+                <option value="removeEmojisFromOptions">Remove Emojis from Options</option>
+                <option value="votingCommand">Voting Command</option>
+            </select>
+        </div>
+
+        <!-- Dynamic settings input -->
+        <div ng-switch="effect.setting.type" aria-label="Setting value input">
+            <div ng-switch-when="allowMultipleVotes">
+                <label class="control-fb control--checkbox" aria-label="Toggle multiple votes">Enable Multiple Votes
+                    <input type="checkbox" ng-model="effect.setting.value">
+                    <div class="control__indicator"></div>
+                </label>
+            </div>
+
+            <div ng-switch-when="showVoteCount">
+                <label class="control-fb control--checkbox" aria-label="Toggle vote count display">Show Vote Count
+                    <input type="checkbox" ng-model="effect.setting.value">
+                    <div class="control__indicator"></div>
+                </label>
+            </div>
+
+            <div ng-switch-when="showPercentages">
+                <label class="control-fb control--checkbox" aria-label="Toggle percentage display">Show Percentages
+                    <input type="checkbox" ng-model="effect.setting.value">
+                    <div class="control__indicator"></div>
+                </label>
+            </div>
+
+            <div ng-switch-when="showVotingCommand">
+                <label class="control-fb control--checkbox" aria-label="Toggle voting command display">Show Voting
+                    Command
+                    <input type="checkbox" ng-model="effect.setting.value">
+                    <div class="control__indicator"></div>
+                </label>
+            </div>
+
+            <div ng-switch-when="animateProgress">
+                <label class="control-fb control--checkbox" aria-label="Toggle progress animation">Animate Progress
+                    <input type="checkbox" ng-model="effect.setting.value">
+                    <div class="control__indicator"></div>
+                </label>
+            </div>
+
+            <div ng-switch-when="removeEmojisFromTitle">
+                <label class="control-fb control--checkbox" aria-label="Toggle emoji removal from title">Remove Emojis
+                    from Title
+                    <input type="checkbox" ng-model="effect.setting.value">
+                    <div class="control__indicator"></div>
+                </label>
+            </div>
+
+            <div ng-switch-when="removeEmojisFromOptions">
+                <label class="control-fb control--checkbox" aria-label="Toggle emoji removal from options">Remove Emojis
+                    from Options
+                    <input type="checkbox" ng-model="effect.setting.value">
+                    <div class="control__indicator"></div>
+                </label>
+            </div>
+
+            <div ng-switch-when="votingCommand">
+                <firebot-input input-title="Voting Command" model="effect.setting.value" placeholder="!vote"
+                    aria-label="Enter voting command">
+                </firebot-input>
+            </div>
+        </div>
+    </div>
+</eos-container>
+
+<!-- Poll Display Position -->
+<div ng-if="effect.mode === 'updatePosition'" aria-label="Poll position configuration">
+    <eos-overlay-position pad-top="true" effect="effect"></eos-overlay-position>
+</div>
+
+<!-- Poll Overlay Instance -->
+<div ng-if="effect.mode === 'updateOverlayInstance'" aria-label="Poll overlay instance selection">
+    <eos-overlay-instance effect="effect" pad-top="true"></eos-overlay-instance>
+</div>
+
+<!-- Poll Pause/Resume -->
+<eos-container ng-if="effect.mode === 'togglePauseState'" header="Pause/Resume Poll" pad-top="true"
+    aria-label="Poll pause and resume controls">
+    <div style="margin-bottom: 15px;">
+        <div class="input-group" style="margin-bottom: 10px;">
+            <span class="input-group-addon" id="pauseActionLabel">Pause/Resume</span>
+            <select class="form-control" ng-model="effect.pauseAction" aria-labelledby="pauseActionLabel">
+                <option value="pause">Pause Poll</option>
+                <option value="unpause">Resume Poll</option>
+            </select>
+        </div>
+        <div class="alert alert-info" style="margin-bottom: 15px;" role="alert">
+            <i class="fas fa-pause-circle"></i>
+            This will Pause/Resume the selected poll.
+        </div>
+    </div>
+</eos-container>
+
+<!-- Poll Stop/Start -->
+<eos-container ng-if="effect.mode === 'pollStatus'" header="Start/Stop Poll" pad-top="true"
+    aria-label="Poll start and stop controls">
+    <div style="margin-bottom: 15px;">
+        <div class="input-group" style="margin-bottom: 10px;">
+            <span class="input-group-addon" id="pollStatusLabel">Start/Stop</span>
+            <select class="form-control" ng-model="effect.pollStatus" aria-labelledby="pollStatusLabel">
+                <option value="stop">Stop Poll</option>
+                <option value="start">Start Poll</option>
+            </select>
+        </div>
+        <div class="alert alert-danger" style="margin-bottom: 15px;" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            Stopped polls will be cleaned up after 7 days of ending/stopping.
+        </div>
+    </div>
+</eos-container>
+
+<!-- Poll Visibility -->
+<eos-container ng-if="effect.mode === 'toggleVisibility'" header="Hide/Show Poll" pad-top="true"
+    aria-label="Poll visibility controls">
+    <div class="input-group">
+        <span class="input-group-addon" id="visibilityActionLabel">Hide/Show</span>
+        <select class="form-control" ng-model="effect.visibilityAction" aria-labelledby="visibilityActionLabel">
+            <option value="show">Show Poll</option>
+            <option value="hide">Hide Poll</option>
+        </select>
+    </div>
+</eos-container>
+
+<!-- Poll Vote Management -->
+<eos-container ng-if="effect.mode === 'manageVotes'" header="Manage Votes" pad-top="true"
+    aria-label="Vote management interface">
+    <div class="input-group" style="margin-bottom: 10px;">
+        <span class="input-group-addon" id="voteActionLabel">Add/Remove/Set/Reset</span>
+        <select class="form-control" ng-model="effect.action" ng-change="effectValueChanged()"
+            aria-labelledby="voteActionLabel">
+            <option value="add">Add Vote</option>
+            <option value="remove">Remove Vote</option>
+            <option value="set">Set Vote Count</option>
+            <option value="reset">Reset User's Votes</option>
+        </select>
+    </div>
+    <firebot-input ng-if="effect.action === 'add' || effect.action === 'remove' || effect.action === 'reset'"
+        model="effect.username" style="margin-bottom: 10px;" input-title="Username" placeholder="Enter username"
+        aria-label="Enter username for vote management">
+    </firebot-input>
+    <firebot-input model="effect.optionNumber" style="margin-bottom: 10px;" input-title="Option Number"
+        input-type="number" placeholder="Enter option number (1-{{effect.pollOptions.optionsList.length}})"
+        ng-if="effect.action !== 'reset'" aria-label="Enter option number for vote management">
+    </firebot-input>
+    <div ng-if="effect.action === 'set'">
+        <firebot-input model="effect.voteCount" input-title="New Vote Count" input-type="number"
+            placeholder="Enter new vote count" aria-label="Enter new vote count">
+        </firebot-input>
+    </div>
+</eos-container>
+
+<!-- Poll Reset -->
+<eos-container ng-if="effect.mode === 'resetPoll'" header="Reset Poll" pad-top="true" aria-label="Poll reset controls">
+    <div class="alert alert-warning" style="margin-bottom: 0px;" role="alert">
+        <i class="fas fa-sync"></i>
+        All votes for poll will be reset. You will have 30 seconds to undo the reset!
+        <div ng-if="canUndoReset && effect.pollSelectionMode === 'pollList'"
+            style="margin-top: 10px; text-align: center;">
+            <button class="btn btn-info" ng-click="undoResetPoll()" aria-label="Undo poll reset">
+                Undo Reset ({{undoTimeRemaining}}s)
+            </button>
+        </div>
+    </div>
+</eos-container>
+
+<!-- Poll Removal -->
+<eos-container ng-if="effect.mode === 'removePoll'" header="Remove Poll" pad-top="true"
+    aria-label="Poll removal confirmation">
+    <div class="alert alert-danger" style="margin-bottom: 0px;" role="alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        Removed poll will be stored in the Advanced Poll Backup Manager for 7 days.
+    </div>
+</eos-container>

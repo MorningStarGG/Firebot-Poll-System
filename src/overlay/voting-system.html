@@ -1,0 +1,1055 @@
+<div class="pollOverlay">
+    <style>
+        :root {
+            --background-color: #111111;
+            --accent-color: #a60000;
+            --shadow-color: #a60000;
+            --option-color: #e3e3e3;
+            --font-size: 24px;
+            --progress-color: #a60000;
+            --track-color: #e9e9e9;
+            --progress-text-color: #000000;
+            --poll-scale: 1;
+            --poll-width: 350px;
+            --title-color: #e3e3e3;
+            --freeze-overlay: rgba(200, 200, 255, 0.1);
+            --freeze-duration: 0.5s;
+        }
+
+        @keyframes crownBob {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(15deg);
+            }
+
+            50% {
+                transform: translateY(-5px) rotate(15deg);
+            }
+        }
+
+        .winner .t1 {
+            animation: winnerReveal 2s infinite;
+            animation-delay: 0.5s;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-color);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes winnerReveal {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 var(--accent-color);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 30px 0 var(--accent-color);
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 var(--accent-color);
+            }
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-50px) rotate(0deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(200px) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .votingWidget {
+            background-color: var(--background-color, #111111);
+            zoom: var(--poll-scale);
+            border-radius: 4px;
+            transition: width var(--freeze-duration) ease-out;
+            overflow: hidden;
+        }
+
+        .pollBars {
+            width: var(--poll-width);
+            background: var(--background-color, #111111);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+
+        .pollBars span {
+            display: block;
+            margin: 7px 0;
+            border-radius: 0px;
+        }
+
+        .pollBar {
+            position: relative;
+            display: flex;
+            width: 100% !important;
+            background: var(--track-color, #e9e9e9);
+            height: 20px;
+            border-radius: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+            overflow: hidden;
+            align-items: center;
+            isolation: isolate;
+        }
+
+        .pollBars>div {
+            padding: 20px 20px 5px;
+        }
+
+        @keyframes freezeEffect {
+            0% {
+                backdrop-filter: blur(0px);
+                background: rgba(255, 255, 255, 0);
+            }
+
+            25% {
+                backdrop-filter: blur(1px);
+                background: rgba(255, 255, 255, 0.025);
+            }
+
+            50% {
+                backdrop-filter: blur(2px);
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            75% {
+                backdrop-filter: blur(3px);
+                background: rgba(255, 255, 255, 0.075);
+            }
+
+            100% {
+                backdrop-filter: blur(4px);
+                background: rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        @keyframes thawEffect {
+            0% {
+                backdrop-filter: blur(4px);
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            25% {
+                backdrop-filter: blur(3px);
+                background: rgba(255, 255, 255, 0.075);
+
+            }
+
+            50% {
+                backdrop-filter: blur(2px);
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            75% {
+                backdrop-filter: blur(1px);
+                background: rgba(255, 255, 255, 0.025);
+            }
+
+            100% {
+                backdrop-filter: blur(0px);
+                background: rgba(255, 255, 255, 0);
+            }
+        }
+
+        .pollBar.freezing {
+            animation: freezeEffect 0.5s forwards;
+        }
+
+        .pollBar.thawing {
+            animation: thawEffect 0.5s forwards;
+        }
+
+        .paused .pollBar {
+            backdrop-filter: blur(4px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .t1 {
+            background: var(--progress-color, #a60000);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 2s ease-in-out;
+            transform-origin: left center;
+            position: relative;
+            z-index: 0;
+        }
+
+        .t1Text {
+            color: var(--progress-text-color, #000000);
+            position: absolute;
+            text-align: center;
+            font-weight: 700;
+            font-size: 20px;
+            letter-spacing: 4px;
+            width: var(--poll-width);
+            text-shadow: 0 0 2px #000;
+            z-index: 2;
+        }
+
+        .voteOptionName,
+        .voteOptionCommand {
+            font-weight: 700;
+            color: var(--option-color, rgb(227, 227, 227));
+            font-size: var(--font-size, 24px);
+            line-height: 120%;
+            font-family: Montserrat;
+        }
+
+        .voteOptionCommand {
+            font-size: 20px;
+            text-shadow: 0 0 3px var(--shadow-color, #a60000);
+            letter-spacing: 3px;
+        }
+
+        .voteOptionCommand span {
+            color: var(--accent-color, #a60000);
+            display: inline;
+        }
+
+        .titleContainer {
+            width: var(--poll-width);
+            color: var(--title-color, rgb(227, 227, 227));
+            font-size: var(--font-size, 24px);
+            line-height: 120%;
+            font-family: Montserrat;
+            margin: 0 auto;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            text-align: center;
+            font-weight: 700;
+            padding-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: none;
+            background-image: linear-gradient(to right, transparent 0%, var(--accent-color) 20%, var(--accent-color) 80%, transparent 100%);
+            background-position: bottom;
+            background-size: 100% 2px;
+            background-repeat: no-repeat;
+        }
+
+        .title {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .pauseIndicator {
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform var(--freeze-duration) ease-out, opacity var(--freeze-duration) ease-out;
+            background: var(--accent-color);
+            border: 2px solid var(--background-color);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            padding: 10px 20px;
+            border-radius: 8px;
+            letter-spacing: 2px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            z-index: 25;
+            opacity: 0;
+        }
+
+        .votingWidget::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--freeze-overlay);
+            opacity: 0;
+            pointer-events: none;
+            transition: all var(--freeze-duration) ease;
+            border-radius: 4px;
+            backdrop-filter: blur(0px);
+            z-index: 5;
+        }
+
+        /* Ice crystal pattern overlay */
+        .votingWidget::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 30% 20%, transparent 0%, transparent 5%, var(--freeze-overlay) 5.1%, transparent 5.2%) 0 0/50px 50px,
+                radial-gradient(circle at 70% 60%, transparent 0%, transparent 5%, var(--freeze-overlay) 5.1%, transparent 5.2%) 0 0/40px 40px,
+                radial-gradient(circle at 40% 80%, transparent 0%, transparent 5%, var(--freeze-overlay) 5.1%, transparent 5.2%) 0 0/60px 60px;
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+            transition: all var(--freeze-duration) ease;
+            border-radius: 4px;
+            z-index: 6;
+        }
+
+        .paused .votingWidget {
+            transform: scale(0.98);
+        }
+
+        .paused .votingWidget::before {
+            opacity: 1;
+            backdrop-filter: blur(3px);
+        }
+
+        .thawing .pauseIndicator {
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            transition: transform calc(var(--freeze-duration) * 0.8) ease-out,
+                opacity calc(var(--freeze-duration) * 0.5) ease-out;
+        }
+
+        .paused .votingWidget::after {
+            opacity: 0.7;
+            transform: scale(1);
+        }
+
+        .paused .pauseIndicator {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+
+        .paused .pollBar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg,
+                    transparent 30%,
+                    var(--freeze-overlay) 40%,
+                    transparent 50%,
+                    var(--freeze-overlay) 60%,
+                    transparent 70%);
+            opacity: 0.6;
+            transition: opacity var(--freeze-duration) ease;
+        }
+
+        .paused .voteOptionName,
+        .paused .voteOptionCommand,
+        .paused .t1Text {
+            text-shadow: 0 0 5px var(--freeze-overlay);
+            transition: text-shadow var(--freeze-duration) ease;
+        }
+
+        /* Progress bar freeze */
+        .paused .t1 {
+            filter: brightness(0.9);
+            transition: filter var(--freeze-duration) ease;
+        }
+
+        .votingWidget:not(.paused) .pollBar::after {
+            animation: thawEffect var(--freeze-duration) ease forwards;
+        }
+
+        .poll-status {
+            color: var(--option-color);
+            text-align: center;
+            font-weight: bold;
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            font-size: 1.5em;
+            padding: 8px 8px;
+            border-radius: 4px;
+            background-color: var(--accent-color);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            width: max-content;
+        }
+
+        .paused .pauseIndicator,
+        .poll-status {
+            display: block;
+        }
+
+        .poll-header {
+            position: relative;
+        }
+
+        .position-wrapper .pollOverlay {
+            position: relative;
+        }
+
+        /* Updated ending styles */
+        .position-wrapper.ended .votingWidget {
+            transform: scale(0.98);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: visible;
+        }
+
+        .position-wrapper.ended .pollBars>div:not(.winner) {
+            opacity: 0.6;
+            transform: scale(0.98);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes winnerPulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .position-wrapper.ended .pollBars>div.winner {
+            animation: winnerPulse 2s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+            z-index: 0;
+            border-radius: 10px;
+            animation-delay: 0.5s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .winner-crown {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 24px;
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 30;
+        }
+
+        .winner .winner-crown {
+            opacity: 1;
+            transform: translateY(0) rotate(15deg);
+            animation: crownBob 2s infinite ease-in-out;
+        }
+
+        .position-wrapper.ended .pollBars>div.winner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(0deg);
+            width: 400%;
+            height: 400%;
+            background-repeat: no-repeat;
+            background-position: 0 0;
+            background-image: conic-gradient(rgba(0, 0, 0, 0), var(--accent-color), rgba(0, 0, 0, 0) 25%);
+            animation: rotateBorder 4s linear infinite;
+            filter: blur(10px);
+            z-index: -1;
+        }
+
+        .position-wrapper.ended .pollBars>div.winner::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            background: var(--background-color);
+            border-radius: 7px;
+            z-index: -1;
+        }
+
+        @keyframes rotateBorder {
+            100% {
+                transform: translate(-50%, -50%) rotate(1turn);
+            }
+        }
+
+        .position-wrapper:not(.ended) .votingWidget {
+            transform: scale(1);
+        }
+
+        /* Animation effects */
+        .animate-shine::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.2),
+                    transparent);
+            transform: translateX(-100%) skewX(-20deg);
+            animation: progressShine 1.5s 1 forwards;
+            z-index: 1;
+        }
+
+        @keyframes progressShine {
+            0% {
+                transform: translateX(-100%) skewX(-20deg);
+            }
+
+            100% {
+                transform: translateX(400%) skewX(-20deg);
+            }
+        }
+
+        @keyframes pollStart {
+            0% {
+                opacity: 0;
+                transform: scale(0.95) translateY(20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        @keyframes optionReveal {
+            0% {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .votingWidget.starting {
+            animation: pollStart 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .starting .pollBars>div {
+            opacity: 0;
+            animation: optionReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            animation-delay: calc(0.2s * var(--option-index, 1));
+        }
+
+        @keyframes shatter {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .shatter-piece {
+            position: absolute;
+            background: var(--background-color);
+            border: 1px solid var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-color);
+            pointer-events: none;
+        }
+
+        .resetting .votingWidget {
+            animation: shatter 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+    </style>
+    <div id="votingWidget" class="votingWidget">
+        <div class="titleContainer">
+            <span class="title"></span>
+        </div>
+        <div class="pollBars"></div>
+        <div class="pauseIndicator">PAUSED</div>
+    </div>
+    <script>
+        // CONFIG will be injected by the effect
+        const CONFIG = {};
+
+        function sanitizeText(text) {
+            return text.replace(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g, '');
+        }
+
+        function getPollId(pollTitle) {
+            return `poll_${pollTitle.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        }
+
+        function handleReset(container) {
+            const votingWidget = container.querySelector('.votingWidget');
+            votingWidget.style.position = 'relative';
+            const pieces = 16;
+
+            // Create shatter pieces animation
+            for (let i = 0; i < pieces; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'shatter-piece';
+                const size = 10 + Math.random() * 30;
+                piece.style.width = `${size}px`;
+                piece.style.height = `${size}px`;
+                piece.style.left = `${Math.random() * 90}%`;
+                piece.style.top = `${Math.random() * 90}%`;
+
+                // Add random delay and direction
+                const delay = Math.random() * 0.5;
+                const direction = Math.random() * 360;
+                const distance = 50 + Math.random() * 100;
+
+                piece.style.transform = `rotate(${direction}deg)`;
+                piece.style.animation = `
+                    shatter 1.5s cubic-bezier(0.25, 1, 0.5, 1) ${delay}s forwards,
+                    fadeOut 0.5s ease-out ${delay + 0.5}s forwards
+                `;
+
+                // Add random movement
+                piece.style.setProperty('--move-x', `${Math.cos(direction) * distance}px`);
+                piece.style.setProperty('--move-y', `${Math.sin(direction) * distance}px`);
+
+                votingWidget.appendChild(piece);
+            }
+
+            container.classList.add('resetting');
+
+            // Get current values before reset
+            const progressBars = container.querySelectorAll('.t1');
+            const voteTexts = container.querySelectorAll('.t1Text');
+
+            progressBars.forEach((bar, index) => {
+                const currentWidth = parseFloat(bar.style.width);
+                const currentText = voteTexts[index].textContent;
+                const [votes, percentage] = currentText.match(/(\d+)/g) || [0, 0];
+
+                // Remove transition to prevent any lingering animation
+                bar.style.transition = 'none';
+
+                let currentVotes = parseInt(votes);
+                const duration = 1500; // 1.5 seconds
+                let startTime = null;
+
+                function animate(currentTime) {
+                    if (!startTime) startTime = currentTime;
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+
+                    if (progress === 1) {
+                        bar.style.width = '0%';
+                        voteTexts[index].textContent = '0 Votes 0%';
+                        return;
+                    }
+
+                    const remainingVotes = Math.max(0, Math.round(currentVotes * (1 - progress)));
+                    const remainingPercentage = Math.max(0, Math.round(currentWidth * (1 - progress)));
+
+                    bar.style.width = `${remainingPercentage}%`;
+                    voteTexts[index].textContent = `${remainingVotes} Votes ${remainingPercentage}%`;
+
+                    requestAnimationFrame(animate);
+                }
+
+                requestAnimationFrame(animate);
+            });
+
+            setTimeout(() => {
+                container.classList.remove('resetting');
+            }, 1500);
+        }
+
+        function createConfetti(element) {
+            const colors = ['#FFD700', '#FF0000', '#00FF00', '#0000FF'];
+            const confettiCount = 30;
+
+            for (let i = 0; i < confettiCount; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animation = `confettiFall ${1 + Math.random() * 2}s linear`;
+
+                element.appendChild(confetti);
+
+                // Remove confetti after animation
+                confetti.addEventListener('animationend', () => {
+                    confetti.remove();
+                });
+            }
+        }
+
+        function handlePauseStateChange(container, isPaused) {
+            const votingWidget = container.querySelector('.votingWidget');
+            const pollBars = container.querySelector('.pollBars');
+
+            // Store previous state to detect changes
+            const wasPaused = votingWidget.classList.contains('paused');
+
+            if (isPaused && !wasPaused) {
+                setTimeout(() => {
+                    // Add freeze animation class to each poll bar
+                    pollBars.querySelectorAll('.pollBar').forEach(bar => {
+                        bar.classList.add('freezing');
+                    });
+                }, 500);
+
+                // Entering pause state
+                container.classList.add('paused');
+
+                // Remove freeze animation class after animation completes
+                setTimeout(() => {
+                    pollBars.querySelectorAll('.pollBar').forEach(bar => {
+                        bar.classList.remove('freezing');
+                    });
+                }, 500);
+
+            } else if (!isPaused && wasPaused) {
+                // Exiting pause state
+                container.classList.add('resuming');
+
+                // Add thaw animation class to each poll bar
+                pollBars.querySelectorAll('.pollBar').forEach(bar => {
+                    bar.classList.add('thawing');
+                });
+
+                // Remove paused class after a brief delay to allow for transition
+                setTimeout(() => {
+                    container.classList.remove('paused');
+                }, 50);
+
+                // Remove resuming and thaw animation classes after animation completes
+                setTimeout(() => {
+                    container.classList.remove('resuming');
+                    pollBars.querySelectorAll('.pollBar').forEach(bar => {
+                        bar.classList.remove('thawing');
+                    });
+                }, 500); // Match your --freeze-duration CSS variable
+            }
+        }
+
+        // Function to handle show/hide state
+        let isHidden = false;
+        function handleVisibilityChange(container, shouldShow) {
+            const wasHidden = isHidden;
+            isHidden = !shouldShow;
+
+            if (shouldShow && wasHidden) {
+                // Only trigger animation if we're coming from a hidden state
+                startPollAnimation(container);
+            }
+        }
+
+        function startPollAnimation(container) {
+            const votingWidget = container.querySelector('.votingWidget');
+
+            // Reset any existing animations
+            votingWidget.classList.remove('starting');
+
+            // Force a reflow to ensure animation plays again
+            void votingWidget.offsetWidth;
+
+            // Add starting class to trigger animations
+            votingWidget.classList.add('starting');
+
+            // Remove the class after animations complete
+            setTimeout(() => {
+                votingWidget.classList.remove('starting');
+            }, 1500); // Adjust timing based on your longest animation duration
+        }
+
+        function updatePollDisplay(config) {
+            if (!config || !config.pollData) {
+                console.error('Missing config or pollData');
+                return;
+            }
+
+            const pollId = getPollId(config.pollTitle);
+            const oldPollId = config.oldPollTitle ? getPollId(config.oldPollTitle) : null;
+
+            let container = document.getElementById(pollId);
+
+            if (!container && oldPollId) {
+                container = document.getElementById(oldPollId);
+                if (container) {
+                    container.id = pollId;
+                }
+            }
+
+            if (!container) {
+                console.error(`No container found for poll ${pollId}`);
+                return;
+            }
+
+            if (config.isResetting) {
+                handleReset(container);
+                return;
+            }
+
+            if (config.show) {
+                startPollAnimation(container);
+            }
+
+            if (config.ended) {
+                container.classList.add('ended');
+                if (!container.querySelector('.poll-status')) {
+                    const statusElement = document.createElement('div');
+                    statusElement.className = 'poll-status';
+                    statusElement.textContent = 'Poll Ended';
+                    container.querySelector('.titleContainer').appendChild(statusElement);
+
+                    // Handle winners
+                    const maxVotes = Math.max(...config.pollData.options.map(opt => opt.votes));
+                    const winners = config.pollData.options.filter(opt => opt.votes === maxVotes);
+
+                    setTimeout(() => {
+                        winners.forEach(winner => {
+                            const optionElement = container.querySelector(`#${pollId}-option-${winner.option_number}`);
+                            if (optionElement) {
+                                optionElement.classList.add('winner');
+
+                                if (!optionElement.querySelector('.winner-crown')) {
+                                    const crown = document.createElement('div');
+                                    crown.className = 'winner-crown';
+                                    crown.textContent = '👑';
+                                    optionElement.appendChild(crown);
+                                }
+
+                                createConfetti(optionElement);
+
+                                const t1Element = optionElement.querySelector('.t1');
+                                if (t1Element) {
+                                    t1Element.style.boxShadow = '0 0 10px var(--accent-color)';
+                                }
+                            }
+                        });
+                    }, 100);
+                }
+            } else {
+                container.classList.remove('ended');
+                const statusElement = container.querySelector('.poll-status');
+                if (statusElement) {
+                    statusElement.remove();
+                }
+            }
+
+            if (config.paused) {
+                handlePauseStateChange(container, true);
+            }
+
+            const votingWidget = container.querySelector('.votingWidget');
+            if (votingWidget) {
+                votingWidget.style.setProperty('--background-color', config.styles.backgroundColor);
+                votingWidget.style.setProperty('--accent-color', config.styles.accentColor);
+                votingWidget.style.setProperty('--option-color', config.styles.optionColor);
+                votingWidget.style.setProperty('--title-color', config.styles.titleColor);
+                votingWidget.style.setProperty('--shadow-color', config.styles.shadowColor);
+                votingWidget.style.setProperty('--track-color', config.styles.trackColor);
+                votingWidget.style.setProperty('--progress-color', config.styles.progressColor);
+                votingWidget.style.setProperty('--font-size', config.styles.fontSize);
+                votingWidget.style.setProperty('--poll-scale', config.styles.pollScale);
+                votingWidget.style.setProperty('--progress-text-color', config.styles.progressTextColor);
+            }
+
+            const titleElement = container.querySelector('.title');
+            if (titleElement) {
+                const shouldRemoveFromTitle = config.display?.removeEmojis?.fromTitle ?? false;
+                titleElement.textContent = shouldRemoveFromTitle ? sanitizeText(config.pollData.title) : config.pollData.title;
+            }
+
+            const pollBarsContainer = container.querySelector('.pollBars');
+            if (!pollBarsContainer) {
+                const newPollBarsContainer = document.createElement('div');
+                newPollBarsContainer.className = 'pollBars';
+                votingWidget.appendChild(newPollBarsContainer);
+            }
+
+            // Collect current state before updates
+            const oldOptions = {};
+            pollBarsContainer.querySelectorAll('[id^="' + pollId + '-option-"]').forEach(element => {
+                const optionNumber = parseInt(element.id.split('-').pop());
+                const voteText = element.querySelector('.t1Text').textContent;
+                const votes = parseInt(voteText.match(/(\d+)/)[0]) || 0;
+                oldOptions[optionNumber] = votes;
+            });
+
+            // Calculate old total votes for percentage calculations
+            const oldTotalVotes = Object.values(oldOptions).reduce((sum, votes) => sum + votes, 0) || 0;
+
+            pollBarsContainer.innerHTML = '';
+
+            config.pollData.options.forEach((option) => {
+                const votePercentage = config.pollData.total_votes > 0
+                    ? Math.round((option.votes / config.pollData.total_votes) * 100)
+                    : 0;
+
+                const shouldRemoveFromOptions = config.display?.removeEmojis?.fromOptions ?? false;
+                const optionName = shouldRemoveFromOptions ? sanitizeText(option.option_name) : option.option_name;
+
+                const optionElement = document.createElement('div');
+                optionElement.id = `${pollId}-option-${option.option_number}`;
+
+                const isWinner = config.ended &&
+                    option.votes === Math.max(...config.pollData.options.map(opt => opt.votes));
+
+                const winnerCrownHTML = isWinner ? '<div class="winner-crown">👑</div>' : '';
+
+                // Get the old votes and calculate old percentage
+                const oldVotes = oldOptions[option.option_number] || 0;
+                const oldPercentage = oldTotalVotes > 0
+                    ? Math.round((oldVotes / oldTotalVotes) * 100)
+                    : 0;
+
+                // Determine if any votes changed in the poll
+                const votesChangedInPoll = Object.keys(oldOptions).some(key =>
+                    oldOptions[key] !== config.pollData.options.find(opt =>
+                        opt.option_number === parseInt(key))?.votes
+                );
+
+                // Animate if either this option's votes changed or if total votes changed
+                if (config.display?.animateProgress && votesChangedInPoll) {
+                    optionElement.innerHTML = `
+                <div class="voteOptionName">${option.option_number}. ${optionName}</div>
+                <div class="voteOptionCommand" style="display: ${config.display?.showVotingCommand ? 'block' : 'none'}">
+                    ${config.display?.showVotingCommand ? `type <span>"${config.pollOptions.votingCommand} ${option.option_number}"</span> in chat` : ''}
+                </div>
+                <div class="pollBar ${isWinner ? 'winner' : ''}">
+                    <span class="t1" style="width: ${oldPercentage}%;"></span>
+                    <div class="t1Text">
+                        ${[
+                            config.display?.showVoteCount ? `${oldVotes} Votes` : '',
+                            config.display?.showPercentages ? `${oldPercentage}%` : ''
+                        ].filter(Boolean).join(' ')}
+                    </div>
+                </div>
+                ${winnerCrownHTML}
+            `;
+
+                    setTimeout(() => {
+                        const progressBar = optionElement.querySelector('.t1');
+                        const textElement = optionElement.querySelector('.t1Text');
+                        progressBar.style.width = `${votePercentage}%`;
+                        textElement.textContent = [
+                            config.display?.showVoteCount ? `${option.votes} Votes` : '',
+                            config.display?.showPercentages ? `${votePercentage}%` : ''
+                        ].filter(Boolean).join(' ');
+
+                        // Only add shine to bars that actually changed vote count
+                        if (oldVotes !== option.votes) {
+                            optionElement.classList.add('animate-shine');
+                        }
+                    }, 50);
+
+                    setTimeout(() => {
+                        optionElement.classList.remove('animate-shine');
+                    }, 1300);
+                } else {
+                    optionElement.innerHTML = `
+                <div class="voteOptionName">${option.option_number}. ${optionName}</div>
+                <div class="voteOptionCommand" style="display: ${config.display?.showVotingCommand ? 'block' : 'none'}">
+                    ${config.display?.showVotingCommand ? `type <span>"${config.pollOptions.votingCommand} ${option.option_number}"</span> in chat` : ''}
+                </div>
+                <div class="pollBar ${isWinner ? 'winner' : ''}">
+                    <span class="t1" style="width: ${votePercentage}%;"></span>
+                    <div class="t1Text">
+                        ${[
+                            config.display?.showVoteCount ? `${option.votes} Votes` : '',
+                            config.display?.showPercentages ? `${votePercentage}%` : ''
+                        ].filter(Boolean).join(' ')}
+                    </div>
+                </div>
+                ${winnerCrownHTML}
+            `;
+                }
+
+                if (isWinner) {
+                    optionElement.classList.add('winner');
+                    if (config.ended) {
+                        setTimeout(() => createConfetti(optionElement), 100);
+                    }
+                }
+
+                pollBarsContainer.appendChild(optionElement);
+            });
+
+            if (!config.paused && !config.ended &&
+                (!container.dataset.pollInitialized ||
+                    (config.pollTitle !== container.dataset.lastPollTitle && !votesChangedInPoll))) {
+                startPollAnimation(container);
+                container.dataset.pollInitialized = 'true';
+                container.dataset.lastPollTitle = config.pollTitle;
+            }
+        }
+
+        function updatePollState(config) {
+            const pollId = getPollId(config.pollTitle);
+            const oldPollId = config.oldPollTitle ? getPollId(config.oldPollTitle) : null;
+
+            let pollElement = document.getElementById(pollId) ||
+                (oldPollId ? document.getElementById(oldPollId) : null);
+
+            if (!pollElement) return;
+
+            if (oldPollId && pollElement.id === oldPollId) {
+                pollElement.id = pollId;
+            }
+
+            if (config.ended) {
+                pollElement.classList.add('ended');
+                if (!pollElement.querySelector('.poll-status')) {
+                    const statusElement = document.createElement('div');
+                    statusElement.className = 'poll-status';
+                    statusElement.textContent = 'Poll Ended';
+                    pollElement.querySelector('.titleContainer').appendChild(statusElement);
+                }
+            } else {
+                pollElement.classList.remove('ended');
+                const statusElement = pollElement.querySelector('.poll-status');
+                if (statusElement) {
+                    statusElement.remove();
+                }
+            }
+        }
+
+        // Handle initial display
+        if (CONFIG && CONFIG.pollData) {
+            console.log('Initial poll display:', CONFIG);
+            updatePollDisplay(CONFIG);
+        }
+
+        // Handle voting system updates
+        window.addEventListener('votingSystemUpdate', (event) => {
+            console.log('Received votingSystemUpdate event:', event);
+            const { detail } = event;
+
+            if (!detail || !detail.config) {
+                console.error('Missing detail or config in update event');
+                return;
+            }
+
+            console.log('Processing update with config:', detail.config);
+            updatePollState(detail.config);
+            updatePollDisplay(detail.config);
+        });
+    </script>
+</div>
