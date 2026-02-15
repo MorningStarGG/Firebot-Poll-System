@@ -88,11 +88,7 @@ export const emitPollStop = async (
         await eventManager.triggerEvent(
             VOTING_SYSTEM_SOURCE_ID,
             POLL_STOP_EVENT,
-            eventData,
-            {
-                isRepeatable: true,
-                skipCache: true
-            }
+            eventData
         );
 
         logger.info('Poll stop event emission completed successfully');

@@ -192,7 +192,7 @@ Included are animations for the following events:
 ### Building
 1. Clone the repository:
 ```
-git clone https://github.com/your-repo/firebot-advanced-goal-tracker.git
+git clone https://github.com/MorningStarGG/Firebot-Poll-System.git
 ```
 2. Install dependencies:
 ```
